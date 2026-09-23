@@ -26,10 +26,11 @@ jobs:
           echo "Extracted files:"
           find build -maxdepth 3 -type f | sort
 
+    
       - name: Install dependencies
-        working-directory: build
+        working-directory: build/ReadComicsOnlineLol-Paperback-0.8
         run: npm install
 
       - name: Build extension
-        working-directory: build
+        working-directory: build/ReadComicsOnlineLol-Paperback-0.8
         run: npm run bundle
