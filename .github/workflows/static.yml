@@ -28,6 +28,17 @@ jobs:
         with:
           node-version: 20
 
+      - name: Check repository files
+        run: |
+          echo "Current branch:"
+          git branch --show-current
+
+          echo "Repository root:"
+          ls -la
+
+          echo "ZIP files:"
+          find . -maxdepth 2 -type f -iname "*.zip" -print
+
       - name: Extract extension
         run: |
           mkdir -p build
