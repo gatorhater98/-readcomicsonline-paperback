@@ -35,7 +35,7 @@ jobs:
         working-directory: build/ReadComicsOnlineLol-Paperback-0.8
         run: npm run bundle
 
-              - name: Show build output
+      - name: Show build output
         run: |
           echo "=== BUILD OUTPUT ==="
           find build -maxdepth 5 -type f | sort
