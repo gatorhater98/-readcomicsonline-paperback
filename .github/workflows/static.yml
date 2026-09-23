@@ -31,7 +31,7 @@ jobs:
       - name: Extract extension
         run: |
           mkdir -p build
-          unzip -o ReadComicsOnlineLol-Paperback-0.8-first-build.zip -d build
+          unzip -o ReadComicsOnlineLol-Paperback-0.8-v3.zip -d build
 
       - name: Install dependencies
         working-directory: build/ReadComicsOnlineLol-Paperback-0.8
