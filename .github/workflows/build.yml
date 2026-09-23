@@ -34,3 +34,15 @@ jobs:
       - name: Build extension
         working-directory: build/ReadComicsOnlineLol-Paperback-0.8
         run: npm run bundle
+
+              - name: Show build output
+        run: |
+          echo "=== BUILD OUTPUT ==="
+          find build -maxdepth 5 -type f | sort
+
+      - name: Upload Paperback build
+        uses: actions/upload-artifact@v4
+        with:
+          name: paperback-extension
+          path: build/ReadComicsOnlineLol-Paperback-0.8
+          if-no-files-found: error
