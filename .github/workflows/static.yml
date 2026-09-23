@@ -28,21 +28,34 @@ jobs:
         with:
           node-version: 20
 
-      - name: Check repository files
+      - name: Find extension ZIP
+        id: find_zip
         run: |
-          echo "Current branch:"
-          git branch --show-current
-
-          echo "Repository root:"
+          echo "Files in repository:"
           ls -la
 
-          echo "ZIP files:"
+          echo "ZIP files found:"
           find . -maxdepth 2 -type f -iname "*.zip" -print
+
+          ZIP_FILE=$(find . -maxdepth 2 -type f -iname "*.zip" | head -n 1)
+
+          if [ -z "$ZIP_FILE" ]; then
+            echo "ERROR: No ZIP file was found in the repository."
+            exit 1
+          fi
+
+          echo "Using ZIP: $ZIP_FILE"
+          echo "zip_file=$ZIP_FILE" >> "$GITHUB_OUTPUT"
 
       - name: Extract extension
         run: |
           mkdir -p build
-          unzip -o ReadComicsOnlineLol-Paperback-0.8-v3.zip -d build
+          unzip -o "${{ steps.find_zip.outputs.zip_file }}" -d build
+
+      - name: Show extracted files
+        run: |
+          echo "Extracted files:"
+          find build -maxdepth 3 -type f | sort
 
       - name: Install dependencies
         working-directory: build/ReadComicsOnlineLol-Paperback-0.8
