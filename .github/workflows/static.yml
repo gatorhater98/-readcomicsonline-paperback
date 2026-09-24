@@ -31,16 +31,16 @@ jobs:
       - name: Find extension ZIP
         id: find_zip
         run: |
-          echo "Files in repository:"
+          echo "Repository files:"
           ls -la
 
-          echo "ZIP files found:"
+          echo "ZIP files:"
           find . -maxdepth 2 -type f -iname "*.zip" -print
 
           ZIP_FILE=$(find . -maxdepth 2 -type f -iname "*.zip" | head -n 1)
 
           if [ -z "$ZIP_FILE" ]; then
-            echo "ERROR: No ZIP file was found in the repository."
+            echo "ERROR: No ZIP file found."
             exit 1
           fi
 
@@ -51,11 +51,6 @@ jobs:
         run: |
           mkdir -p build
           unzip -o "${{ steps.find_zip.outputs.zip_file }}" -d build
-
-      - name: Show extracted files
-        run: |
-          echo "Extracted files:"
-          find build -maxdepth 3 -type f | sort
 
       - name: Install dependencies
         working-directory: build/ReadComicsOnlineLol-Paperback-0.8
@@ -68,24 +63,17 @@ jobs:
       - name: Prepare Pages
         run: |
           mkdir -p pages
-          cp -R build/ReadComicsOnlineLol-Paperback-0.8/bundles pages/
 
-          cat > pages/index.html <<'EOF'
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="UTF-8">
-            <title>ReadComicsOnline.lol Paperback Repository</title>
-          </head>
-          <body>
-            <h1>ReadComicsOnline.lol Paperback Repository</h1>
-            <p>Paperback 0.8 extension repository.</p>
-          </body>
-          </html>
-          EOF
+          # Publish the CONTENTS of bundles directly at the Pages root.
+          cp -R build/ReadComicsOnlineLol-Paperback-0.8/bundles/. pages/
 
           echo "Pages contents:"
-          find pages -maxdepth 5 -type f | sort
+          find pages -maxdepth 4 -type f | sort
+
+      - name: Verify versioning.json
+        run: |
+          echo "Checking generated versioning.json:"
+          cat pages/versioning.json
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
