@@ -1,22 +1,26 @@
-name: Build Paperback Extension
+name: Deploy Paperback Repository
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-  
 on:
   workflow_dispatch:
   push:
     branches:
       - main
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Get repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Node.js
@@ -24,51 +28,148 @@ jobs:
         with:
           node-version: 20
 
-      - name: Find and extract extension ZIP
+      - name: Find extension ZIP
+        id: find_zip
+        shell: bash
         run: |
-          mkdir -p build
-          unzip -o ReadComicsOnlineLol-Paperback-0.8-v6.zip -d build
-          echo "Extracted files:"
-          find build -maxdepth 3 -type f | sort
+          set -euo pipefail
 
-    
+          echo "Repository files:"
+          ls -la
+
+          echo "ZIP files:"
+          find . -maxdepth 3 -type f -iname "*.zip" -print
+
+          ZIP_FILE="$(find . -maxdepth 3 -type f -iname "*.zip" | head -n 1)"
+
+          if [ -z "$ZIP_FILE" ]; then
+            echo "ERROR: No extension ZIP file found."
+            exit 1
+          fi
+
+          echo "Using ZIP: $ZIP_FILE"
+          echo "zip_file=$ZIP_FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Extract extension
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          rm -rf build
+          mkdir -p build
+
+          unzip -o "${{ steps.find_zip.outputs.zip_file }}" -d build
+
+          echo "Extracted files:"
+          find build -maxdepth 5 -type f | sort
+
+      - name: Check extension directory
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PROJECT="build/ReadComicsOnlineLol-Paperback-0.8"
+
+          if [ ! -d "$PROJECT" ]; then
+            echo "ERROR: Extension directory not found:"
+            echo "$PROJECT"
+            exit 1
+          fi
+
+          echo "Extension directory found."
+
       - name: Install dependencies
         working-directory: build/ReadComicsOnlineLol-Paperback-0.8
         run: npm install
 
-      - name: Build extension
+      - name: Bundle extension
         working-directory: build/ReadComicsOnlineLol-Paperback-0.8
         run: npm run bundle
 
-      - name: Show build output
+      - name: Prepare GitHub Pages
+        shell: bash
         run: |
-          echo "=== BUILD OUTPUT ==="
-          find build -maxdepth 5 -type f | sort
+          set -euo pipefail
 
-      - name: Upload Paperback build
-        uses: actions/upload-artifact@v4
-        with:
-          name: paperback-extension
-          path: build/ReadComicsOnlineLol-Paperback-0.8
-          if-no-files-found: error
+          rm -rf pages
+          mkdir -p pages
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
+          BUNDLES="build/ReadComicsOnlineLol-Paperback-0.8/bundles"
 
-      - name: Upload Pages artifact
+          if [ ! -d "$BUNDLES" ]; then
+            echo "ERROR: bundles directory was not created."
+            exit 1
+          fi
+
+          # Publish the contents of bundles directly at the Pages root.
+          cp -R "$BUNDLES"/. pages/
+
+          echo "Final Pages contents:"
+          find pages -maxdepth 5 -type f | sort
+
+      - name: Verify versioning.json
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ ! -f "pages/versioning.json" ]; then
+            echo "ERROR: versioning.json was not generated."
+            exit 1
+          fi
+
+          echo "Generated versioning.json:"
+          cat pages/versioning.json
+
+          echo
+          echo "Checking JSON syntax..."
+
+          node -e "
+            const fs = require('fs');
+            JSON.parse(fs.readFileSync('pages/versioning.json', 'utf8'));
+            console.log('versioning.json is valid JSON.');
+          "
+
+      - name: Verify ReadComicsOnlineLol registration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          node <<'NODE'
+          const fs = require('fs');
+
+          const path = 'pages/versioning.json';
+          const data = JSON.parse(fs.readFileSync(path, 'utf8'));
+
+          if (!Array.isArray(data.sources)) {
+            throw new Error('versioning.json does not contain a sources array.');
+          }
+
+          const source = data.sources.find(
+            source => source && source.id === 'ReadComicsOnlineLol'
+          );
+
+          if (!source) {
+            throw new Error(
+              'ReadComicsOnlineLol was not found in versioning.json.'
+            );
+          }
+
+          console.log('ReadComicsOnlineLol is registered correctly:');
+          console.log(JSON.stringify(source, null, 2));
+          NODE
+
+      - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: build/ReadComicsOnlineLol-Paperback-0.8
+          path: pages
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
+
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    permissions:
-      pages: write
-      id-token: write
 
     steps:
       - name: Deploy to GitHub Pages
