@@ -20,27 +20,32 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+          cache-dependency-path: build/ReadComicsOnlineLol-Paperback-0.8/package-lock.json
 
       - name: Find extension ZIP
         id: find_zip
+        shell: bash
         run: |
+          set -euo pipefail
+
           echo "Repository files:"
           ls -la
 
           echo "ZIP files:"
-          find . -maxdepth 2 -type f -iname "*.zip" -print
+          find . -maxdepth 3 -type f -iname "*.zip" -print
 
-          ZIP_FILE=$(find . -maxdepth 2 -type f -iname "*.zip" | head -n 1)
+          ZIP_FILE="$(find . -maxdepth 3 -type f -iname "*.zip" | head -n 1)"
 
           if [ -z "$ZIP_FILE" ]; then
-            echo "ERROR: No ZIP file found."
+            echo "ERROR: No extension ZIP file found."
             exit 1
           fi
 
@@ -48,34 +53,64 @@ jobs:
           echo "zip_file=$ZIP_FILE" >> "$GITHUB_OUTPUT"
 
       - name: Extract extension
+        shell: bash
         run: |
+          set -euo pipefail
+
+          rm -rf build
           mkdir -p build
+
           unzip -o "${{ steps.find_zip.outputs.zip_file }}" -d build
+
+          echo "Extracted files:"
+          find build -maxdepth 4 -type f | sort
 
       - name: Install dependencies
         working-directory: build/ReadComicsOnlineLol-Paperback-0.8
-        run: npm install
+        run: npm ci
 
       - name: Bundle extension
         working-directory: build/ReadComicsOnlineLol-Paperback-0.8
         run: npm run bundle
 
-      - name: Prepare Pages
+      - name: Prepare GitHub Pages
+        shell: bash
         run: |
+          set -euo pipefail
+
+          rm -rf pages
           mkdir -p pages
 
-          # Publish the CONTENTS of bundles directly at the Pages root.
+          if [ ! -d "build/ReadComicsOnlineLol-Paperback-0.8/bundles" ]; then
+            echo "ERROR: bundles directory was not created."
+            exit 1
+          fi
+
+          # Publish the contents of bundles at the Pages root.
           cp -R build/ReadComicsOnlineLol-Paperback-0.8/bundles/. pages/
 
-          echo "Pages contents:"
-          find pages -maxdepth 4 -type f | sort
+          echo "Final Pages contents:"
+          find pages -maxdepth 5 -type f | sort
 
-      - name: Verify versioning.json
+      - name: Verify repository
+        shell: bash
         run: |
-          echo "Checking generated versioning.json:"
-          cat pages/versioning.json
+          set -euo pipefail
 
-      - name: Upload Pages artifact
+          if [ ! -f "pages/versioning.json" ]; then
+            echo "ERROR: versioning.json was not generated."
+            exit 1
+          fi
+
+          echo
+          echo "Generated versioning.json:"
+          cat pages/versioning.json
+          echo
+
+          echo "Checking JSON syntax..."
+          node -e "JSON.parse(require('fs').readFileSync('pages/versioning.json', 'utf8')); console.log('versioning.json is valid JSON.')"
+
+      - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: pages
