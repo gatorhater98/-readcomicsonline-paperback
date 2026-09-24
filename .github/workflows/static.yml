@@ -1,0 +1,13 @@
+name: Legacy Static Workflow (Disabled)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  disabled:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disabled
+        run: |
+          echo "The old static deployment workflow is disabled."
+          echo "The active deployment workflow is .github/workflows/build.yml."
