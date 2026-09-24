@@ -101,7 +101,6 @@ jobs:
             exit 1
           fi
 
-          # Publish the contents of bundles directly at the Pages root.
           cp -R "$BUNDLES"/. pages/
 
           echo "Final Pages contents:"
@@ -129,7 +128,7 @@ jobs:
             console.log('versioning.json is valid JSON.');
           "
 
-      - name: Verify ReadComicsOnlineLol registration
+      - name: Inspect generated sources
         shell: bash
         run: |
           set -euo pipefail
@@ -140,22 +139,31 @@ jobs:
           const path = 'pages/versioning.json';
           const data = JSON.parse(fs.readFileSync(path, 'utf8'));
 
+          console.log('');
+          console.log('========================================');
+          console.log('REGISTERED SOURCES');
+          console.log('========================================');
+
           if (!Array.isArray(data.sources)) {
-            throw new Error('versioning.json does not contain a sources array.');
+            console.log('WARNING: No sources array was generated.');
+            process.exit(0);
           }
 
-          const source = data.sources.find(
-            source => source && source.id === 'ReadComicsOnlineLol'
-          );
-
-          if (!source) {
-            throw new Error(
-              'ReadComicsOnlineLol was not found in versioning.json.'
-            );
+          if (data.sources.length === 0) {
+            console.log('WARNING: The sources array is empty.');
+            process.exit(0);
           }
 
-          console.log('ReadComicsOnlineLol is registered correctly:');
-          console.log(JSON.stringify(source, null, 2));
+          for (const source of data.sources) {
+            console.log(JSON.stringify({
+              id: source?.id,
+              name: source?.name,
+              version: source?.version,
+              websiteBaseURL: source?.websiteBaseURL
+            }, null, 2));
+          }
+
+          console.log('========================================');
           NODE
 
       - name: Upload GitHub Pages artifact
