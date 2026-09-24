@@ -27,7 +27,7 @@ jobs:
       - name: Find and extract extension ZIP
         run: |
           mkdir -p build
-          unzip -o ReadComicsOnlineLol-Paperback-0.8-v3.zip -d build
+          unzip -o ReadComicsOnlineLol-Paperback-0.8-v4.zip -d build
           echo "Extracted files:"
           find build -maxdepth 3 -type f | sort
 
